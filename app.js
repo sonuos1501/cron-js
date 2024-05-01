@@ -44,7 +44,8 @@ async function saveToExcel(data, date) {
 cron.schedule('* * * * *', async () => {
   const year = 2023;
   for (let month = 1; month <= 12; month++) {
-    for (let day = 1; day <= 31; day++) {
+    const daysInMonth = new Date(year, month, 0).getDate(); // Số ngày trong tháng
+    for (let day = 1; day <= daysInMonth; day++) {
       const date = `${day}/${month}/${year}`;
       const data = await fetchData(date);
       if (data) {
