@@ -2,8 +2,10 @@ const fs = require('fs');
 const fetch = require('node-fetch');
 const xlsx = require('xlsx-populate');
 
+const year = 2023
+
 // Đường dẫn file Excel
-const filePath = `/Users/son/Documents/project_sample/cron/output-data-2023.xlsx`;
+const filePath = `/Users/son/Documents/project_sample/cron/output-data-${year}.xlsx`;
 
 // Kiểm tra và tạo file nếu chưa tồn tại
 function ensureFileExists() {
@@ -58,9 +60,12 @@ async function saveToExcel(data, date) {
     sheet.cell('C1').value('Giá Bán');
   }
 
-  const startRow = sheet.usedRange() ? sheet.usedRange().endCell().row() + 1 : 2;
+  if (workbook.sheet('Sheet1')) {
+    workbook.deleteSheet(workbook.sheet('Sheet1'))
+  }
+
   data.forEach((item, index) => {
-    const rowIndex = startRow + index;
+    const rowIndex = sheet.usedRange() ? sheet.usedRange()._numRows + 1 : 2;
     sheet.cell(`A${rowIndex}`).value(item.thoiGian);
     sheet.cell(`B${rowIndex}`).value(item.congSuat);
     sheet.cell(`C${rowIndex}`).value(item.giaBan);
@@ -71,7 +76,6 @@ async function saveToExcel(data, date) {
 
 // Lập lịch lấy dữ liệu cho toàn bộ năm 2023
 async function main() {
-  const year = 2023;
   for (let month = 1; month <= 12; month++) {
     const monthFormatted = month.toString().padStart(2, '0');  // Định dạng tháng với 2 chữ số
     const daysInMonth = new Date(year, month, 0).getDate(); // Số ngày trong tháng
