@@ -1,8 +1,9 @@
 const fetch = require('node-fetch');
 const cron = require('node-cron');
-const Papa = require('papaparse');
-const fs = require('fs');
 const xlsx = require('xlsx-populate');
+
+// Đường dẫn file Excel
+const filePath = `/Users/son/Documents/project_sample/cron/output-data-2023.xlsx`;
 
 // Hàm lấy dữ liệu từ API
 async function fetchData(date) {
@@ -18,26 +19,41 @@ async function fetchData(date) {
 
 // Hàm lưu dữ liệu vào sheet trong file Excel
 async function saveToExcel(data, date) {
-  const workbook = await xlsx.fromBlankAsync();
-  const sheet = workbook.sheet(0);
+  let workbook;
+  try {
+    // Cố gắng mở workbook hiện có
+    workbook = await xlsx.fromFileAsync(filePath);
+  } catch (error) {
+    // Nếu không có, tạo mới
+    workbook = await xlsx.fromBlankAsync();
+  }
+
   const monthYear = date.split('-');
-  sheet.name(`${monthYear[1]}-${monthYear[2]}`);
+  const sheetName = `${monthYear[1]}-${monthYear[2]}`;
+  let sheet = workbook.sheet(sheetName);
 
-  // Tạo header cho sheet
-  sheet.cell('A1').value('Thời Gian');
-  sheet.cell('B1').value('Công Suất');
-  sheet.cell('C1').value('Giá Bán');
+  // Nếu sheet không tồn tại, tạo mới
+  if (!sheet) {
+    sheet = workbook.addSheet(sheetName);
+    // Tạo header cho sheet mới
+    sheet.cell('A1').value('Thời Gian');
+    sheet.cell('B1').value('Công Suất');
+    sheet.cell('C1').value('Giá Bán');
+  }
 
-  // Thêm dữ liệu từ mảng vào sheet
+  // Tính dòng bắt đầu để thêm dữ liệu mới
+  const startRow = sheet.usedRange() ? sheet.usedRange().endCell().row() + 1 : 2;
+
+  // Thêm dữ liệu vào sheet
   data.forEach((item, index) => {
-    const rowIndex = index + 2;
+    const rowIndex = startRow + index;
     sheet.cell(`A${rowIndex}`).value(item.thoiGian);
     sheet.cell(`B${rowIndex}`).value(item.congSuat);
     sheet.cell(`C${rowIndex}`).value(item.giaBan);
   });
 
-  // Lưu workbook vào file
-  await workbook.toFileAsync(`/Users/son/Documents/project_sample/cron/output-${monthYear[1]}-${monthYear[2]}.xlsx`);
+  // Lưu workbook
+  await workbook.toFileAsync(filePath);
 }
 
 // Lập lịch lấy dữ liệu cho toàn bộ năm 2023
@@ -58,4 +74,4 @@ cron.schedule('* * * * *', async () => {
   timezone: "Asia/Ho_Chi_Minh"
 });
 
-console.log('Scheduled task set for fetching data daily for the year 2023');
+console.log('Scheduled task set for fetching data for the entire year 2023');
