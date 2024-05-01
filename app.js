@@ -1,41 +1,60 @@
-const cron = require('node-cron');
 const fetch = require('node-fetch');
+const cron = require('node-cron');
+const Papa = require('papaparse');
 const fs = require('fs');
+const xlsx = require('xlsx-populate');
 
-// Hàm chuyển đổi dữ liệu JSON thành chuỗi CSV
-
-// Hàm ghi dữ liệu CSV vào tệp
-
-// Hàm lấy dữ liệu từ API và ghi vào tệp CSV cho một ngày cụ thể
-async function fetchDataAndWriteToCSVForDate(date) {
+// Hàm lấy dữ liệu từ API
+async function fetchData(date) {
+  const url = `https://www.nldc.evn.vn/api/services/app/Dashboard/GetBieuDoTuongQuanPT?day=${date}`;
   try {
-    const formattedDate = date.toISOString().slice(0, 10).split('-').reverse().join('%2F');
-    const apiUrl = `https://www.nldc.evn.vn/api/services/app/Dashboard/GetBieuDoTuongQuanPT?day=${formattedDate}`;
-    const response = await fetch(apiUrl);
+    const response = await fetch(url);
     const data = await response.json();
-
-    const csvData = convertToCSV(data);
-
-    const filePath = `output_${date.toISOString().slice(0, 10)}.csv`;
-    writeCSVToFile(csvData, filePath);
-
-    console.log(`CSV file created for ${date.toISOString().slice(0, 10)}`);
+    return data.result.data.phuTai;
   } catch (error) {
     console.error('Error fetching data:', error);
   }
 }
 
-// Hàm lặp qua tất cả các ngày trong năm và gọi fetchDataAndWriteToCSVForDate cho mỗi ngày
-async function fetchDataAndWriteToCSVForYear(year) {
-  const startDate = new Date(year, 0, 1);
-  const endDate = new Date(year, 11, 31);
+// Hàm lưu dữ liệu vào sheet trong file Excel
+async function saveToExcel(data, date) {
+  const workbook = await xlsx.fromBlankAsync();
+  const sheet = workbook.sheet(0);
+  const monthYear = date.split('-');
+  sheet.name(`${monthYear[1]}-${monthYear[2]}`);
 
-  for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-    await fetchDataAndWriteToCSVForDate(date);
-  }
+  // Tạo header cho sheet
+  sheet.cell('A1').value('Thời Gian');
+  sheet.cell('B1').value('Công Suất');
+  sheet.cell('C1').value('Giá Bán');
+
+  // Thêm dữ liệu từ mảng vào sheet
+  data.forEach((item, index) => {
+    const rowIndex = index + 2;
+    sheet.cell(`A${rowIndex}`).value(item.thoiGian);
+    sheet.cell(`B${rowIndex}`).value(item.congSuat);
+    sheet.cell(`C${rowIndex}`).value(item.giaBan);
+  });
+
+  // Lưu workbook vào file
+  await workbook.toFileAsync(`/Users/son/Documents/project_sample/cron/output-${monthYear[1]}-${monthYear[2]}.xlsx`);
 }
 
-// Lập lịch chạy hàm fetchDataAndWriteToCSVForYear mỗi ngày lúc 12:00 AM
-cron.schedule('0 0 * * *', () => {
-  fetchDataAndWriteToCSVForYear(2024);
+// Lập lịch lấy dữ liệu cho toàn bộ năm 2023
+cron.schedule('* * * * *', async () => {
+  const year = 2023;
+  for (let month = 1; month <= 12; month++) {
+    for (let day = 1; day <= 31; day++) {
+      const date = `${day}/${month}/${year}`;
+      const data = await fetchData(date);
+      if (data) {
+        saveToExcel(data, `${day}-${month}-${year}`);
+      }
+    }
+  }
+}, {
+  scheduled: true,
+  timezone: "Asia/Ho_Chi_Minh"
 });
+
+console.log('Scheduled task set for fetching data daily for the year 2023');
