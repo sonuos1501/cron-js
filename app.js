@@ -1,6 +1,5 @@
 const fs = require('fs');
 const fetch = require('node-fetch');
-const cron = require('node-cron');
 const xlsx = require('xlsx-populate');
 
 // Đường dẫn file Excel
@@ -29,9 +28,12 @@ async function fetchData(date) {
 
     // Check if the data structure is as expected
     if (!data || !data.result || !data.result.data || !data.result.data.phuTai) {
+      console.log(url);
       console.error('Data is missing or the format is incorrect:', data);
       return null;  // Return null or appropriate value when data is incorrect
     }
+
+    console.log(data.result.data.phuTai);
 
     return data.result.data.phuTai;
   } catch (error) {
@@ -68,7 +70,7 @@ async function saveToExcel(data, date) {
 }
 
 // Lập lịch lấy dữ liệu cho toàn bộ năm 2023
-cron.schedule('* * * * *', async () => {
+async function main() {
   const year = 2023;
   for (let month = 1; month <= 12; month++) {
     const monthFormatted = month.toString().padStart(2, '0');  // Định dạng tháng với 2 chữ số
@@ -82,9 +84,7 @@ cron.schedule('* * * * *', async () => {
       }
     }
   }
-}, {
-  scheduled: true,
-  timezone: "Asia/Ho_Chi_Minh"
-});
+}
 
 console.log('Scheduled task set for fetching and saving data for the entire year 2023');
+main()
